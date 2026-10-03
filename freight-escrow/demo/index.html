@@ -1,0 +1,78 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>FOKS Freight Escrow — Reference Demo</title><style>
+*{box-sizing:border-box}body{margin:0;background:#101d30;color:#edf5ff;font-family:Arial,sans-serif;font-size:16px}main{max-width:1000px;margin:auto;padding:32px 24px}header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #32465d;padding-bottom:24px}h1{font-size:32px;margin:0}h2{font-size:24px;margin:0 0 24px}.tag{color:#50dbbb;text-transform:uppercase;font-size:14px;letter-spacing:2px}.notice{padding:16px;background:#1c3048;border-left:4px solid #50dbbb;margin:24px 0;line-height:1.5}.grid{display:grid;grid-template-columns:1.2fr 1fr;gap:24px}.panel{background:#182940;border:1px solid #334963;padding:28px;border-radius:16px}label{display:block;color:#b7c8dc;margin:20px 0 8px}input,select{width:100%;padding:14px;border:1px solid #42607d;border-radius:8px;background:#102034;color:white;font-size:16px}button{border:0;border-radius:8px;padding:14px 18px;font-size:16px;font-weight:bold;cursor:pointer;background:#50dbbb;color:#0b2830;margin:16px 8px 0 0}button.secondary{background:#304961;color:#fff}button:disabled{opacity:.35;cursor:not-allowed}.balance{font-size:42px;font-weight:bold;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #30465d;padding:16px 0}.status{color:#50dbbb;font-weight:bold}#message{min-height:48px;color:#ffd79c;margin-top:20px}ul{padding-left:20px;color:#b7c8dc;line-height:1.65}.foot{font-size:14px;color:#91a8c2;margin:24px 0}#history{min-height:100px;line-height:1.7} @media(max-width:700px){.grid{grid-template-columns:1fr}main{padding:20px 16px}.panel{padding:24px}h1{font-size:27px}header{display:block}.tag{margin-top:12px}}
+</style><main><header><h1>FOKS Freight Escrow</h1><div class="tag">Payment before the load</div></header><div class="notice"><b>Reference demo · No blockchain transactions</b><br>This interactive model uses simulated six-decimal tokens. No wallet, real USDC or customer funds. It demonstrates the proposed payment workflow.</div><div class="grid"><section class="panel"><h2>Load agreement</h2><div class="row"><span>Shipper</span><b>Shipper demo</b></div><div class="row"><span>Carrier</span><b>Carrier demo</b></div><div class="row"><span>Agreed arbitrator</span><b>Arbitrator demo</b></div><label for="principal">Reserved amount (demo tokens)</label><input id="principal" type="number" min="1" step="1" value="2500"><button id="fund">Fund load</button><label for="actor">Act as</label><select id="actor"><option value="shipper">Shipper</option><option value="carrier">Carrier</option><option value="arbitrator">Arbitrator</option></select><div><button id="accept">Accept load</button><button id="release">Approve delivery & pay</button><button id="dispute" class="secondary">Raise dispute</button></div><label for="award">Arbitrator award to carrier (demo tokens)</label><input id="award" type="number" min="0" step="1" value="2000"><button id="resolve">Resolve dispute</button><button id="expire" class="secondary">Advance past expiry</button><button id="refund" class="secondary">Refund unaccepted load</button><button id="reset" class="secondary">Reset demo</button><div id="message" role="status"></div></section><section class="panel"><h2>Reserved payment</h2><div id="status" class="status">No order</div><div class="balance" id="balance">0.00</div><div class="row"><span>Carrier paid</span><b id="carrierPaid">0.00</b></div><div class="row"><span>Shipper returned</span><b id="shipperPaid">0.00</b></div><div class="row"><span>Acceptance window</span><b id="expiry">Open</b></div><h2 style="margin-top:32px">Activity</h2><div id="history" aria-live="polite">Create a funded order to begin.</div><ul><li>Only the carrier accepts.</li><li>The shipper approves delivery.</li><li>Either party can dispute an accepted load.</li><li>The named arbitrator allocates disputed principal.</li><li>Refund requires an expired, unaccepted order.</li></ul></section></div><div class="foot">Development prototype · Rust host compilation and reference-model tests passed. Validator integration, deployment and independent audit remain pending.</div></main><script>
+// Executable reference model, NOT a blockchain client or custody service.
+const MAX = (1n << 64n) - 1n;
+function amount(value, positive = false) {
+  const n = BigInt(value);
+  if (n < 0n || n > MAX || (positive && n === 0n)) throw Error('Invalid amount');
+  return n;
+}
+class EscrowModel {
+  #orders = new Map();
+  fund({ id, shipper, carrier, arbitrator, principal, deadline }, now) {
+    if (![shipper, carrier, arbitrator].every(x => typeof x === 'string' && x.length)) throw Error('Missing role');
+    if (new Set([shipper, carrier, arbitrator]).size !== 3) throw Error('Distinct roles required');
+    if (!Number.isSafeInteger(deadline) || deadline <= now) throw Error('Invalid deadline');
+    const key = JSON.stringify([shipper, String(id)]);
+    if (this.#orders.has(key)) throw Error('Order already exists');
+    principal = amount(principal, true);
+    this.#orders.set(key, { shipper, carrier, arbitrator, principal, vault: principal, deadline, status: 'Funded', carrierPaid: 0n, shipperPaid: 0n });
+    return key;
+  }
+  get(key) { return { ...this.#read(key) }; }
+  #read(key) {
+    const order = this.#orders.get(key);
+    if (!order) throw Error('Unknown order');
+    return order;
+  }
+  #check(order, actor, role, status) {
+    if (actor !== order[role]) throw Error('Unauthorized');
+    if (order.status !== status) throw Error('Invalid state');
+  }
+  accept(key, actor, now) {
+    const o = this.#read(key);
+    this.#check(o, actor, 'carrier', 'Funded');
+    if (now >= o.deadline) throw Error('Acceptance expired');
+    o.status = 'Accepted';
+  }
+  dispute(key, actor) {
+    const o = this.#read(key);
+    if (actor !== o.shipper && actor !== o.carrier) throw Error('Unauthorized');
+    if (o.status !== 'Accepted') throw Error('Invalid state');
+    o.status = 'Disputed';
+  }
+  donate(key, units) {
+    const o = this.#read(key);
+    units = amount(units);
+    if (o.vault + units > MAX) throw Error('Overflow');
+    o.vault += units;
+  }
+  #settle(o, carrierPaid, status) {
+    if (o.vault < o.principal) throw Error('Underfunded');
+    o.carrierPaid = carrierPaid;
+    o.shipperPaid = o.vault - carrierPaid;
+    o.vault = 0n;
+    o.status = status;
+  }
+  release(key, actor) {
+    const o = this.#read(key);
+    this.#check(o, actor, 'shipper', 'Accepted');
+    this.#settle(o, o.principal, 'Settled');
+  }
+  refund(key, actor, now) {
+    const o = this.#read(key);
+    this.#check(o, actor, 'shipper', 'Funded');
+    if (now < o.deadline) throw Error('Refund not yet available');
+    this.#settle(o, 0n, 'Refunded');
+  }
+  resolve(key, actor, carrierUnits) {
+    const o = this.#read(key);
+    this.#check(o, actor, 'arbitrator', 'Disputed');
+    carrierUnits = amount(carrierUnits);
+    if (carrierUnits > o.principal) throw Error('Award exceeds principal');
+    this.#settle(o, carrierUnits, 'Settled');
+  }
+}
+
+let m,key,now,events; const $=id=>document.getElementById(id); const fmt=n=>(Number(n)/1e6).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});function init(){m=new EscrowModel();key=null;now=0;events=[];render();$('message').textContent='';}function render(){const o=key?m.get(key):null;$('status').textContent=o?o.status:'No order';$('balance').textContent=o?fmt(o.vault):'0.00';$('carrierPaid').textContent=o?fmt(o.carrierPaid):'0.00';$('shipperPaid').textContent=o?fmt(o.shipperPaid):'0.00';$('expiry').textContent=now>=60?'Expired':'Open';$('history').textContent=events.length?events.join(' · '):'Create a funded order to begin.';$('fund').disabled=!!key;['accept','release','dispute','resolve','expire','refund'].forEach(id=>$(id).disabled=!key);}function run(action,fn){try{fn();events.push(action);$('message').textContent='Success: '+action;render();}catch(e){$('message').textContent='Blocked: '+e.message;}}const actor=()=>$('actor').value;const units=id=>{const n=Number($(id).value);if(!Number.isSafeInteger(n)||n<0)throw Error('Use a non-negative whole token amount');return BigInt(n)*1000000n;};$('fund').onclick=()=>run('Payment reserved',()=>key=m.fund({id:1,shipper:'shipper',carrier:'carrier',arbitrator:'arbitrator',principal:units('principal'),deadline:60},now));$('accept').onclick=()=>run('Carrier accepted',()=>m.accept(key,actor(),now));$('release').onclick=()=>run('Delivery approved and paid',()=>m.release(key,actor()));$('dispute').onclick=()=>run('Dispute opened',()=>m.dispute(key,actor()));$('resolve').onclick=()=>run('Arbitrator allocated funds',()=>m.resolve(key,actor(),units('award')));$('expire').onclick=()=>run('Acceptance window expired',()=>now=60);$('refund').onclick=()=>run('Unaccepted order refunded',()=>m.refund(key,actor(),now));$('reset').onclick=init;init();</script></html>

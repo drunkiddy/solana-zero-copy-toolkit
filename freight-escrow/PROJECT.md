@@ -2,7 +2,7 @@
 ## Fund the load. Verify delivery. Settle with confidence.
 
 ### Status — October 3, 2026
-Development contract draft plus an executable reference model with eight passing tests. The Rust contract has not been compiled or run in a validator. No deployed escrow program, funded vault, completed audit, live customer integration, or measured performance is claimed. The freight-escrow directory is the new product; the parent repository contains an earlier toolkit scaffold.
+Development contract draft plus an executable reference model with eight passing tests. Rust host cargo check passes; SBF build and validator execution remain unverified. No deployed escrow program, funded vault, completed audit, live customer integration, or measured performance is claimed. The freight-escrow directory is the new product; the parent repository contains an earlier toolkit scaffold.
 
 ### Problem and users
 Independent carriers and small freight operators need visibility into whether payment is reserved before performing a load. Brokers and shippers need an agreed process for confirming delivery and resolving disputes. The initial product is intended for counterparties who already agree to settle in stablecoins; fiat conversion and factoring are outside the first release.

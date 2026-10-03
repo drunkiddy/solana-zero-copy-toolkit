@@ -9,11 +9,13 @@ A development prototype for freight payment escrow on Solana, intended for shipp
 - Anchor source for funding, acceptance, disputes, approved payout, arbitration and expired unaccepted-order refunds.
 - Role, PDA, token-account ownership and state-transition constraints.
 - Executable JavaScript reference model with eight passing test cases, including sampled conservation checks.
+- Interactive reference UI in `demo/index.html`, using simulated tokens and no blockchain transactions.
+- A six-slide pitch in `media/FOKS-pitch.pptx` (9:16) and recording scripts.
 - Product scope, audit objectives and a proposed roadmap in `PROJECT.md`.
 
 ## What has not been verified
 
-The Rust/Anchor program has not been compiled or run in a validator in the authoring environment, which has no Rust, Anchor or Solana toolchain. JavaScript tests validate the reference model, **not Solana execution or the Rust implementation**. There is no devnet/mainnet deployment, IDL, wallet-integrated UI, completed audit or live customer trial.
+The Rust/Anchor source passes host `cargo check` with Rust 1.99.0 and pinned Anchor 0.31.1 dependencies. This is not an SBF build or validator execution; Anchor/Solana integration remains unverified. JavaScript tests validate the reference model, **not Solana execution or the Rust implementation**. There is no devnet/mainnet deployment, IDL, wallet-integrated UI, completed audit or live customer trial.
 
 The token mint is selected at creation and must have six decimals. This allows local test tokens but does not enforce USDC identity. A production deployment must use an explicit USDC mint allowlist and display the mint address. The program ID is a development placeholder, not deployment evidence.
 
@@ -24,6 +26,10 @@ Node.js 20+ is sufficient; there are no package dependencies.
 ```sh
 npm test
 ```
+
+## Open the interactive demo
+
+Open `demo/index.html` in a browser. It is self-contained and uses no dependencies, wallet or network calls. It demonstrates funding, authorized acceptance, approved payout, disputes, arbitration and expiry refunds.
 
 ## Contract development
 
