@@ -2,7 +2,7 @@
 ## Fund the load. Verify delivery. Settle with confidence.
 
 ### Status — October 3, 2026
-Concept and implementation specification. No deployed escrow program, funded vault, completed audit, live customer integration, or measured performance is claimed. The parent repository contains an earlier Solana toolkit scaffold, not this product's implementation.
+Development contract draft plus an executable reference model with eight passing tests. The Rust contract has not been compiled or run in a validator. No deployed escrow program, funded vault, completed audit, live customer integration, or measured performance is claimed. The freight-escrow directory is the new product; the parent repository contains an earlier toolkit scaffold.
 
 ### Problem and users
 Independent carriers and small freight operators need visibility into whether payment is reserved before performing a load. Brokers and shippers need an agreed process for confirming delivery and resolving disputes. The initial product is intended for counterparties who already agree to settle in stablecoins; fiat conversion and factoring are outside the first release.
@@ -13,7 +13,7 @@ A Solana escrow program that holds SPL USDC for an individual freight order. A s
 Blockchain records payment reservation and settlement. It does not independently prove physical delivery. Documents stay off-chain; a hash links the signed order and evidence to the escrow without publishing driver details, freight documents, or precise locations.
 
 ### MVP boundaries
-- One agreed token mint and the standard SPL Token program.
+- Standard SPL Token program; current development code accepts a six-decimal mint per order. Fixed USDC mint allowlisting is a required production task.
 - Unique order PDA derived from shipper and order ID; escrow PDA controls the vault.
 - Immutable shipper, carrier, arbitrator, amount, and acceptance deadline.
 - Atomic order creation and funding.
